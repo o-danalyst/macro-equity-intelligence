@@ -21,17 +21,15 @@ def get_data(start, end):
     # Fetch DJIA from Yahoo Finance
     djia = yf.download("^DJI", start=start, end=end)['Close']
     
-    # --- FIX: Fetch CPI directly from FRED CSV to avoid distutils error ---
+    # Fetch CPI directly from FRED CSV
     cpi_url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL"
     cpi = pd.read_csv(cpi_url, index_col='DATE', parse_dates=True)
     cpi = cpi.rename(columns={'CPIAUCSL': 'CPI'})
     
     # Filter CPI to match the user's selected date range
-    # We broaden the fetch slightly to ensure we catch the nearest month
     cpi = cpi.loc[start:end]
     
-    # Align dates (Forward fill to match daily stock data with monthly CPI)
-    # We join them to ensure they share the exact same index
+    # Align dates
     data = pd.DataFrame({'DJIA': djia}).join(cpi).ffill().dropna()
     
     # Calculate Indexed Returns (Base 100)
@@ -80,15 +78,15 @@ try:
         else:
             sentiment = "Moderate correlation. Market is sensitive but not entirely dictated by CPI trends."
 
-        st.write(f"""
-        **Executive Summary:** Since the start of this period, the Dow Jones has grown by **{total_return:.1f}%**. However, when accounting for 
-        the Consumer Price Index (CPI), the actual increase in purchasing power is only **{real_return:.1f}%**. 
-        
-        **Portfolio Impact:** {sentiment} 
-        To maintain 'Real Wealth,' an investor during this period needed to outpace an inflation hurdle of **{erosion:.1f}%**.
-        Any growth below this threshold represents a loss in real-world value despite nominal gains.
-        """)
+        # We construct the string first to avoid syntax errors
+        summary_text = (
+            f"**Executive Summary:** Since the start of this period, the Dow Jones has grown by **{total_return:.1f}%**. "
+            f"However, when accounting for the Consumer Price Index (CPI), the actual increase in purchasing power is only **{real_return:.1f}%**. \n\n"
+            f"**Portfolio Impact:** {sentiment} \n"
+            f"To maintain 'Real Wealth,' an investor during this period needed to outpace an inflation hurdle of **{erosion:.1f}%**. "
+            "Any growth below this threshold represents a loss in real-world value despite nominal gains."
+        )
+        st.markdown(summary_text)
 
 except Exception as e:
-    st.error(f"An error occurred while processing the data. Try adjusting the date range. Error details: {e}")
-    """)
+    st.error(f"An error occurred: {e}")
