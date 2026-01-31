@@ -73,7 +73,16 @@ try:
 except Exception as e:
     st.error(f"Error loading dashboard: {e}")
 
-# 5. Sidebar About
+# 5. Sidebar "About" (Enhanced Portfolio Description)
 st.sidebar.markdown("---")
-st.sidebar.subheader("About")
-st.sidebar.info("Augmented Analytics: Merging equity data with macro fundamentals.")
+st.sidebar.subheader("📌 Project Intelligence")
+st.sidebar.write("""
+**Objective:** To quantify the 'Money Illusion' by comparing nominal stock market gains against real-world purchasing power using the Consumer Price Index (CPI).
+
+**How it Works:** 1. **Live Sourcing:** Fetches real-time DJIA data from Yahoo Finance and monthly CPI data from the St. Louis FED (FRED).
+2. **Indexing:** Normalizes both datasets to a 'Base 100' starting at your chosen date.
+3. **Augmentation:** Calculates the **Real Return** by dividing the Nominal Index by the Inflation Index ($Real = \frac{Nominal}{CPI} \times 100$).
+4. **AI Analysis:** Runs a Pearson Correlation coefficient to determine how much inflation is driving market movements.
+
+**Why this matters:** Investors often see the Dow at all-time highs and assume wealth growth. This tool reveals if those gains are beating the rising cost of living.
+""")
