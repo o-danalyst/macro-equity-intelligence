@@ -96,6 +96,9 @@ try:
             "Any growth below this threshold represents a loss in real-world value despite nominal gains."
         )
         st.markdown(summary_text)
+        st.sidebar.markdown("---")
+st.sidebar.subheader("About")
+st.sidebar.info("This tool demonstrates Augmented Analytics by merging live equity data with macro fundamentals to reveal real purchasing power trends.")
 
 except Exception as e:
     st.error(f"An error occurred: {e}")
