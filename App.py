@@ -19,23 +19,28 @@ end_date = st.sidebar.date_input("End Date", datetime.now())
 @st.cache_data
 def get_data(start, end):
     # Fetch DJIA from Yahoo Finance
-    djia = yf.download("^DJI", start=start, end=end)['Close']
+    # .copy() ensures we have a fresh object to work with
+    djia_raw = yf.download("^DJI", start=start, end=end)['Close']
+    
+    # Convert Series to DataFrame and handle potential multi-index issues
+    djia = pd.DataFrame(djia_raw)
+    djia.columns = ['DJIA']
     
     # Fetch CPI directly from FRED CSV
     cpi_url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL"
     cpi = pd.read_csv(cpi_url)
     
-    # NEW FIX: Automatically find the date column and the value column
-    # This avoids the "not in list" error by looking at positions rather than names
-    cpi.columns = ['Date', 'CPI'] # Force rename columns
+    # Standardize CPI columns
+    cpi.columns = ['Date', 'CPI']
     cpi['Date'] = pd.to_datetime(cpi['Date'])
     cpi.set_index('Date', inplace=True)
     
     # Filter CPI to match the user's selected date range
     cpi = cpi.loc[start:end]
     
-    # Align dates
-    data = pd.DataFrame({'DJIA': djia}).join(cpi).ffill().dropna()
+    # Align dates using a 'Left Join' on the DJIA index
+    # This forces the CPI data to match the stock market trading days
+    data = djia.join(cpi, how='left').ffill().dropna()
     
     # Calculate Indexed Returns (Base 100)
     data['DJIA_Indexed'] = (data['DJIA'] / data['DJIA'].iloc[0]) * 100
