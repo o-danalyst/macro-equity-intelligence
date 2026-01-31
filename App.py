@@ -30,19 +30,22 @@ def get_data(start, end):
     cpi['Date'] = pd.to_datetime(cpi['Date'])
     cpi.set_index('Date', inplace=True)
     
-    # Align and Calculate
+    # Filter CPI and Join
     cpi = cpi.loc[start:end]
     data = djia.join(cpi, how='left').ffill().dropna()
+    
+    # Analytics Calculations
     data['DJIA_Indexed'] = (data['DJIA'] / data['DJIA'].iloc[0]) * 100
     data['CPI_Indexed'] = (data['CPI'] / data['CPI'].iloc[0]) * 100
     data['Real_Value'] = (data['DJIA_Indexed'] / data['CPI_Indexed']) * 100
     return data
 
-# 4. Main App Execution
+# 4. Main Execution Block
 try:
+    # Load Data
     data = get_data(start_date, end_date)
 
-    # Visualization
+    # Charting
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data.index, y=data['DJIA_Indexed'], name="Dow Jones (Nominal)"))
     fig.add_trace(go.Scatter(x=data.index, y=data['CPI_Indexed'], name="CPI (Inflation)"))
@@ -50,37 +53,27 @@ try:
     fig.update_layout(title="Nominal vs. Real Returns (Base 100)", xaxis_title="Date", yaxis_title="Indexed Value")
     st.plotly_chart(fig, use_container_width=True)
 
-    # KPIs
+    # Metrics Section
     st.header("🔍 Macro-Analytic Summary")
     total_return = ((data['DJIA_Indexed'].iloc[-1] / 100) - 1) * 100
     real_return = ((data['Real_Value'].iloc[-1] / 100) - 1) * 100
     erosion = total_return - real_return
     corr = data['DJIA_Indexed'].corr(data['CPI_Indexed'])
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Nominal ROI", f"{total_return:.1f}%")
-    col2.metric("Real ROI", f"{real_return:.1f}%", delta=f"{-erosion:.1f}%", delta_color="inverse")
-    col3.metric("Correlation Factor", f"{corr:.2f}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Nominal ROI", f"{total_return:.1f}%")
+    c2.metric("Real ROI", f"{real_return:.1f}%", delta=f"{-erosion:.1f}%", delta_color="inverse")
+    c3.metric("Correlation", f"{corr:.2f}")
 
-    # Automated Commentary
+    # Insights Section
     st.subheader("🤖 Automated Market Commentary")
-    with st.expander("Click to view detailed AI Analysis", expanded=True):
-        sentiment = "High correlation" if corr > 0.7 else "Moderate correlation" if corr > 0.3 else "Low correlation"
-        summary_text = (
-            f"**Executive Summary:** Since {start_date.year}, the Dow Jones grew **{total_return:.1f}%**. "
-            f"Adjusted for inflation, purchasing power grew **{real_return:.1f}%**. \n\n"
-            f"**Portfolio Impact:** {sentiment}. To maintain real wealth, an investor needed to beat an inflation hurdle of **{erosion:.1f}%**."
-        )
-        st.markdown(summary_text)
+    sentiment = "High correlation" if corr > 0.7 else "Moderate correlation" if corr > 0.3 else "Low correlation"
+    st.info(f"Since {start_date.year}, the Dow grew **{total_return:.1f}%**. After inflation, purchasing power grew **{real_return:.1f}%**. {sentiment} detected.")
 
 except Exception as e:
-    st.error(f"Data error: {e}")
+    st.error(f"Error loading dashboard: {e}")
 
-# 5. Sidebar "About" (Placed outside the try/except block properly)
+# 5. Sidebar About
 st.sidebar.markdown("---")
 st.sidebar.subheader("About")
-st.sidebar.info("This Augmented Analytics tool merges live equity data with macro fundamentals to reveal real purchasing power trends.")
-st.sidebar.info("This tool demonstrates Augmented Analytics by merging live equity data with macro fundamentals to reveal real purchasing power trends.")
-
-except Exception as e:
-    st.error(f"An error occurred: {e}")
+st.sidebar.info("Augmented Analytics: Merging equity data with macro fundamentals.")
