@@ -23,8 +23,13 @@ def get_data(start, end):
     
     # Fetch CPI directly from FRED CSV
     cpi_url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL"
-    cpi = pd.read_csv(cpi_url, index_col='DATE', parse_dates=True)
-    cpi = cpi.rename(columns={'CPIAUCSL': 'CPI'})
+    cpi = pd.read_csv(cpi_url)
+    
+    # NEW FIX: Automatically find the date column and the value column
+    # This avoids the "not in list" error by looking at positions rather than names
+    cpi.columns = ['Date', 'CPI'] # Force rename columns
+    cpi['Date'] = pd.to_datetime(cpi['Date'])
+    cpi.set_index('Date', inplace=True)
     
     # Filter CPI to match the user's selected date range
     cpi = cpi.loc[start:end]
@@ -39,7 +44,6 @@ def get_data(start, end):
     # Augmented Logic: Inflation Adjusted Value
     data['Real_Value'] = (data['DJIA_Indexed'] / data['CPI_Indexed']) * 100
     return data
-
 try:
     data = get_data(start_date, end_date)
 
