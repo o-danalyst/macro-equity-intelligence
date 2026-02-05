@@ -1,83 +1,88 @@
 import streamlit as st
 import yfinance as yf
-import pandas_datareader.data as web
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 
-# Page Config
+# 1. Page Config
 st.set_page_config(page_title="Macro-AI: DJIA vs Inflation", layout="wide")
 
 st.title("📉 Augmented Analytics: DJIA vs. Inflation")
 st.markdown("This app analyzes the **Dow Jones Industrial Average** against the **Consumer Price Index (CPI)** to determine real purchasing power.")
 
-# 1. Sidebar for Inputs
+# 2. Sidebar for Inputs
 st.sidebar.header("Analysis Settings")
 start_date = st.sidebar.date_input("Start Date", datetime(2010, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.now())
 
-# 2. Data Fetching (Cached for speed)
+# 3. Data Fetching Logic
 @st.cache_data
 def get_data(start, end):
-    # Fetch DJIA from Yahoo Finance
-    djia = yf.download("^DJI", start=start, end=end)['Close']
+    # Fetch DJIA
+    djia_raw = yf.download("^DJI", start=start, end=end)['Close']
+    djia = pd.DataFrame(djia_raw)
+    djia.columns = ['DJIA']
     
-    # Fetch CPI from FRED (Federal Reserve)
-    cpi = web.DataReader("CPIAUCSL", "fred", start, end)
+    # Fetch CPI
+    cpi_url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL"
+    cpi = pd.read_csv(cpi_url)
+    cpi.columns = ['Date', 'CPI']
+    cpi['Date'] = pd.to_datetime(cpi['Date'])
+    cpi.set_index('Date', inplace=True)
     
-    # Align dates
-    data = pd.DataFrame({'DJIA': djia, 'CPI': cpi['CPIAUCSL']}).ffill().dropna()
+    # Filter CPI and Join
+    cpi = cpi.loc[start:end]
+    data = djia.join(cpi, how='left').ffill().dropna()
     
-    # Calculate Indexed Returns (Base 100)
+    # Analytics Calculations
     data['DJIA_Indexed'] = (data['DJIA'] / data['DJIA'].iloc[0]) * 100
     data['CPI_Indexed'] = (data['CPI'] / data['CPI'].iloc[0]) * 100
-    
-    # Augmented Logic: Inflation Adjusted Value
     data['Real_Value'] = (data['DJIA_Indexed'] / data['CPI_Indexed']) * 100
     return data
 
-data = get_data(start_date, end_date)
+# 4. Main Execution Block
+try:
+    # Load Data
+    data = get_data(start_date, end_date)
 
-# 3. Visualization
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=data.index, y=data['DJIA_Indexed'], name="Dow Jones (Nominal)"))
-fig.add_trace(go.Scatter(x=data.index, y=data['CPI_Indexed'], name="CPI (Inflation)"))
-fig.add_trace(go.Scatter(x=data.index, y=data['Real_Value'], name="DJIA (Inflation Adjusted)", line=dict(dash='dash')))
+    # Charting
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data.index, y=data['DJIA_Indexed'], name="Dow Jones (Nominal)"))
+    fig.add_trace(go.Scatter(x=data.index, y=data['CPI_Indexed'], name="CPI (Inflation)"))
+    fig.add_trace(go.Scatter(x=data.index, y=data['Real_Value'], name="DJIA (Inflation Adjusted)", line=dict(dash='dash')))
+    fig.update_layout(title="Nominal vs. Real Returns (Base 100)", xaxis_title="Date", yaxis_title="Indexed Value")
+    st.plotly_chart(fig, use_container_width=True)
 
-fig.update_layout(title="Nominal vs. Real Returns (Base 100)", xaxis_title="Date", yaxis_title="Indexed Value")
-st.plotly_chart(fig, use_container_width=True)
+    # Metrics Section
+    st.header("🔍 Macro-Analytic Summary")
+    total_return = ((data['DJIA_Indexed'].iloc[-1] / 100) - 1) * 100
+    real_return = ((data['Real_Value'].iloc[-1] / 100) - 1) * 100
+    erosion = total_return - real_return
+    corr = data['DJIA_Indexed'].corr(data['CPI_Indexed'])
 
-# 4. Refined AI/Automated Insights Layer
-st.header("🔍 Macro-Analytic Summary")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Nominal ROI", f"{total_return:.1f}%")
+    c2.metric("Real ROI", f"{real_return:.1f}%", delta=f"{-erosion:.1f}%", delta_color="inverse")
+    c3.metric("Correlation", f"{corr:.2f}")
 
-# Calculations for Insights
-total_return = ((data['DJIA_Indexed'].iloc[-1] / 100) - 1) * 100
-real_return = ((data['Real_Value'].iloc[-1] / 100) - 1) * 100
-erosion = total_return - real_return
-corr = data['DJIA_Indexed'].corr(data['CPI_Indexed'])
+    # Insights Section
+    st.subheader("🤖 Automated Market Commentary")
+    sentiment = "High correlation" if corr > 0.7 else "Moderate correlation" if corr > 0.3 else "Low correlation"
+    st.info(f"Since {start_date.year}, the Dow grew **{total_return:.1f}%**. After inflation, purchasing power grew **{real_return:.1f}%**. {sentiment} detected.")
 
-# Display Key Performance Indicators
-col1, col2, col3 = st.columns(3)
-col1.metric("Nominal ROI", f"{total_return:.1f}%")
-col2.metric("Real ROI (Inflation Adj.)", f"{real_return:.1f}%", delta=f"{-erosion:.1f}%", delta_color="inverse")
-col3.metric("Correlation Factor", f"{corr:.2f}")
+except Exception as e:
+    st.error(f"Error loading dashboard: {e}")
 
-# Professional Narrative Logic
-st.subheader("🤖 Automated Market Commentary")
+# 5. Sidebar "About" (Enhanced Portfolio Description)
+st.sidebar.markdown("---")
+st.sidebar.subheader("📌 Project Intelligence")
+st.sidebar.write("""
+**Objective:** To quantify the 'Money Illusion' by comparing nominal stock market gains against real-world purchasing power using the Consumer Price Index (CPI).
 
-with st.expander("Click to view detailed AI Analysis", expanded=True):
-    if corr > 0.7:
-        sentiment = "High positive correlation detected. The Dow is currently scaling with monetary expansion/inflation."
-    elif corr < 0.3:
-        sentiment = "Low correlation. Market drivers are likely decoupled from CPI fluctuations (e.g., Tech-driven growth)."
-    else:
-        sentiment = "Moderate correlation. Market is sensitive but not entirely dictated by CPI trends."
+**How it Works:** 1. **Live Sourcing:** Fetches real-time DJIA data from Yahoo Finance and monthly CPI data from the St. Louis FED (FRED).
+2. **Indexing:** Normalizes both datasets to a 'Base 100' starting at your chosen date.
+3. **Augmentation:** Calculates the **Real Return** by dividing the Nominal Index by the Inflation Index ($Real = \frac{Nominal}{CPI} \times 100$).
+4. **AI Analysis:** Runs a Pearson Correlation coefficient to determine how much inflation is driving market movements.
 
-    st.write(f"""
-    **Executive Summary:** Since the start of this period, the Dow Jones has grown by **{total_return:.1f}%**. However, when accounting for 
-    the Consumer Price Index (CPI), the actual increase in purchasing power is only **{real_return:.1f}%**. 
-    
-    **Portfolio Impact:** {sentiment} 
-    To maintain 'Real Wealth,' an investor during this period needed to outpace an inflation hurdle of **{erosion:.1f}%**.
-    Any growth below this threshold represents a loss in real-world value despite nominal gains.
-    """)
+**Why this matters:** Investors often see the Dow at all-time highs and assume wealth growth. This tool reveals if those gains are beating the rising cost of living.
+""")
